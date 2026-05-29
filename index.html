@@ -1,0 +1,2149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MikroTik Wireguard Configuration Generator</title>
+    <meta name="description" content="Generate and manage MikroTik RouterOS v7 WireGuard configs. Save, load, and add peers dynamically without rotating server keys.">
+    
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- QRious library from CDN (Graceful offline fallback handled in JS) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js" integrity="sha512-pUhCg+CFKsuVsnlo0JamsRLphJmU7DKUNeSDfqW0gd3g54dVEV3KBfIbQQm25K5s0sW6Kco1R3RqGDfFf10uCw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <style>
+        /* ==========================================================================
+           PREMIUM SYSTEM - DASHBOARD GLASSMORPHISM (Vanilla CSS)
+           ========================================================================== */
+        :root {
+            --bg-base: #060814;
+            --bg-surface: #0b0f19;
+            --bg-surface-elevated: #121829;
+            --border-color: #1e293b;
+            --border-hover: #334155;
+            --border-focus: #3b82f6;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --primary-glow: rgba(59, 130, 246, 0.2);
+            --accent: #00f2fe;
+            --accent-glow: rgba(0, 242, 254, 0.15);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.12);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.12);
+            --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --shadow-premium: 0 10px 40px -10px rgba(0, 0, 0, 0.6);
+        }
+
+        body[data-theme="light"] {
+            --bg-base: #f1f5f9;
+            --bg-surface: #ffffff;
+            --bg-surface-elevated: #f8fafc;
+            --border-color: #cbd5e1;
+            --border-hover: #94a3b8;
+            --border-focus: #3b82f6;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-glow: rgba(37, 99, 235, 0.08);
+            --accent: #0ea5e9;
+            --accent-glow: rgba(14, 165, 233, 0.06);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.1);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.1);
+            --shadow-premium: 0 10px 30px -10px rgba(148, 163, 184, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            line-height: 1.6;
+            overflow-x: hidden;
+            padding-bottom: 2rem;
+        }
+
+        /* Ambient glowing background blobs */
+        .ambient-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+            top: -250px;
+            right: -200px;
+            z-index: -1;
+            pointer-events: none;
+            filter: blur(50px);
+        }
+
+        .ambient-glow-left {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            bottom: -200px;
+            left: -150px;
+            z-index: -1;
+            pointer-events: none;
+            filter: blur(50px);
+        }
+
+        /* ==========================================================================
+           GLOBAL HEADER NAVIGATION
+           ========================================================================== */
+        .top-navbar {
+            background: rgba(11, 15, 25, 0.75);
+            border-bottom: 1px solid var(--border-color);
+            backdrop-filter: blur(16px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 0.9rem 2rem;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.2);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: #fff;
+            box-shadow: 0 0 15px var(--primary-glow);
+            font-size: 0.95rem;
+            letter-spacing: -0.05em;
+        }
+
+        .branding {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #ffffff 40%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-subtext {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-top: -0.1rem;
+        }
+
+        .nav-center {
+            flex-grow: 1;
+            max-width: 360px;
+        }
+
+        .config-name-badge {
+            background-color: rgba(6, 8, 20, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 0.35rem 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: var(--transition-smooth);
+        }
+
+        .config-name-badge:focus-within {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .config-name-badge input {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary);
+            width: 100%;
+            font-family: var(--font-sans);
+        }
+
+        .config-name-badge input:focus {
+            outline: none;
+            box-shadow: none;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .btn-nav {
+            background-color: var(--bg-surface-elevated);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: var(--transition-smooth);
+        }
+
+        .btn-nav:hover {
+            border-color: var(--border-hover);
+            background-color: rgba(255, 255, 255, 0.03);
+            color: #fff;
+        }
+
+        .btn-nav-primary {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+        }
+
+        .btn-nav-primary:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+            box-shadow: 0 6px 18px rgba(59, 130, 246, 0.4);
+            color: #fff;
+        }
+
+        /* ==========================================================================
+           DASHBOARD TABS NAVIGATION
+           ========================================================================== */
+        .dashboard-tabs-container {
+            display: flex;
+            gap: 0.5rem;
+            max-width: 1400px;
+            margin: 1.5rem auto 0 auto;
+            padding: 0 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .dashboard-tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            position: relative;
+            transition: var(--transition-smooth);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+
+        .dashboard-tab-btn:hover {
+            color: var(--text-primary);
+            background-color: rgba(255,255,255,0.01);
+        }
+
+        .dashboard-tab-btn.active {
+            color: var(--primary);
+        }
+
+        .dashboard-tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: var(--primary);
+            box-shadow: 0 0 12px var(--primary);
+        }
+
+        .peer-badge {
+            background-color: var(--bg-surface-elevated);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 12px;
+            font-weight: 700;
+            transition: var(--transition-smooth);
+        }
+
+        .dashboard-tab-btn.active .peer-badge {
+            background-color: var(--primary-glow);
+            color: var(--primary);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        /* Tab Content Section */
+        .dashboard-tab-content {
+            display: none;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem 4rem 2rem;
+            animation: paneFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .dashboard-tab-content.active {
+            display: block;
+        }
+
+        @keyframes paneFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ==========================================================================
+           TAB 1: SERVER DASHBOARD
+           ========================================================================== */
+        .server-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        @media (min-width: 1200px) {
+            .server-grid {
+                grid-template-columns: 440px 1fr;
+            }
+        }
+
+        /* Card Layout */
+        .card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 1.75rem;
+            box-shadow: var(--shadow-premium);
+            backdrop-filter: blur(12px);
+            transition: var(--transition-smooth);
+        }
+
+        .card:hover {
+            border-color: rgba(59, 130, 246, 0.15);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+
+        /* Forms Styling */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.85rem;
+        }
+
+        .form-group {
+            margin-bottom: 0.5rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .label-wrapper {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        label {
+            display: inline-block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input, select {
+            width: 100%;
+            background-color: var(--bg-base);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 0.95rem;
+            transition: var(--transition-smooth);
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Tooltips */
+        .tooltip-wrapper {
+            position: relative;
+            display: inline-flex;
+            cursor: pointer;
+            margin-left: 0.4rem;
+            color: var(--text-muted);
+            transition: var(--transition-smooth);
+        }
+
+        .tooltip-wrapper:hover {
+            color: var(--primary);
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            width: 280px;
+            background-color: var(--bg-surface-elevated);
+            color: var(--text-primary);
+            text-align: left;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.85rem;
+            position: absolute;
+            z-index: 1000;
+            bottom: 130%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.2s, visibility 0.2s;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            font-size: 0.8rem;
+            font-weight: 400;
+            line-height: 1.4;
+            text-transform: none;
+            letter-spacing: normal;
+            pointer-events: none;
+        }
+
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--border-color) transparent transparent transparent;
+        }
+
+        .tooltip-wrapper:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Toggle Switches */
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--bg-surface-elevated);
+            padding: 0.85rem 1rem;
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .toggle-label-area {
+            display: flex;
+            align-items: center;
+        }
+
+        .toggle-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-color);
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* ==========================================================================
+           TAB 2: CLIENTS DASHBOARD
+           ========================================================================== */
+        .client-dashboard-header {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (min-width: 992px) {
+            .client-dashboard-header {
+                grid-template-columns: 1.5fr 1fr;
+            }
+        }
+
+        .client-stats-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem 1.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+            box-shadow: var(--shadow-premium);
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-value {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .quick-add-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            box-shadow: var(--shadow-premium);
+            display: flex;
+            align-items: center;
+        }
+
+        .quick-add-form {
+            display: flex;
+            gap: 0.75rem;
+            width: 100%;
+        }
+
+        .quick-add-form input {
+            flex-grow: 1;
+            padding: 0.75rem 1.25rem;
+            background-color: var(--bg-base);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+            transition: var(--transition-smooth);
+            white-space: nowrap;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+        }
+
+        /* Clients cards grid */
+        .peer-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .peer-grid {
+                grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            }
+        }
+
+        @media (min-width: 1400px) {
+            .peer-grid {
+                grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+            }
+        }
+
+        .peer-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-premium);
+            transition: var(--transition-smooth);
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            position: relative;
+            overflow: hidden;
+            animation: cardScaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .peer-card:hover {
+            border-color: rgba(59, 130, 246, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.7);
+        }
+
+        @keyframes cardScaleUp {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .peer-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.85rem;
+        }
+
+        .peer-card-title-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        .card-peer-name-input {
+            background: none;
+            border: 1px solid transparent;
+            padding: 0.2rem 0.4rem;
+            border-radius: 6px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            width: 100%;
+            margin-left: -0.4rem;
+            transition: var(--transition-smooth);
+            font-family: var(--font-sans);
+        }
+
+        .card-peer-name-input:hover {
+            background-color: var(--bg-surface-elevated);
+            border-color: var(--border-color);
+        }
+
+        .card-peer-name-input:focus {
+            background-color: var(--bg-base);
+            border-color: var(--border-focus);
+            box-shadow: 0 0 8px var(--primary-glow);
+            outline: none;
+        }
+
+        .peer-ip-badge {
+            background-color: var(--success-glow);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 0.15rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            align-self: flex-start;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--success);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        /* Keys layout inside peer cards */
+        .peer-card-keys {
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+        }
+
+        .peer-key-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .peer-key-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .key-display {
+            background-color: var(--bg-base);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.45rem 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            transition: var(--transition-smooth);
+            gap: 0.5rem;
+        }
+
+        .key-display:hover {
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+            background-color: var(--bg-surface-elevated);
+        }
+
+        .key-display span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .key-display .obscured-key {
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+        }
+
+        .key-display:hover .obscured-key {
+            color: var(--text-secondary);
+        }
+
+        /* Local Peer Actions footer */
+        .peer-card-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 1rem;
+            margin-top: auto;
+        }
+
+        .btn-card-action {
+            background-color: var(--bg-surface-elevated);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 0.5rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            transition: var(--transition-smooth);
+            flex-grow: 1;
+        }
+
+        .btn-card-action:hover {
+            border-color: var(--primary);
+            color: var(--text-primary);
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+
+        .btn-card-action.active {
+            background-color: var(--primary-glow);
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn-card-delete {
+            background-color: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            padding: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition-smooth);
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+        }
+
+        .btn-card-delete:hover {
+            background-color: var(--danger);
+            border-color: var(--danger);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        /* Expandable QR drawer */
+        .qr-drawer {
+            display: none;
+            flex-direction: column;
+            gap: 1rem;
+            background-color: var(--bg-surface-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-top: 0.25rem;
+            animation: drawerSlideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .qr-drawer.active {
+            display: flex;
+        }
+
+        @keyframes drawerSlideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .qr-drawer-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.25rem;
+            align-items: center;
+        }
+
+        @media (min-width: 480px) {
+            .qr-drawer-layout {
+                grid-template-columns: 140px 1fr;
+            }
+        }
+
+        .qr-drawer-left {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 0.75rem;
+        }
+
+        .qr-drawer-left canvas {
+            background-color: #fff;
+            padding: 0.4rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            width: 125px !important;
+            height: 125px !important;
+        }
+
+        .qr-drawer-right {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-width: 0;
+        }
+
+        .drawer-code-container {
+            background-color: #060814;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            max-height: 155px;
+            overflow-y: auto;
+        }
+
+        .drawer-code-container pre {
+            padding: 0.75rem;
+            margin: 0;
+            font-size: 0.72rem;
+            line-height: 1.45;
+        }
+
+        /* Empty Directory State */
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 5rem 2rem;
+            background-color: var(--bg-surface);
+            border: 1px dashed var(--border-color);
+            border-radius: 18px;
+            color: var(--text-secondary);
+        }
+
+        .empty-icon {
+            width: 48px;
+            height: 48px;
+            stroke: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .empty-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .empty-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            max-width: 420px;
+            margin: 0 auto;
+        }
+
+        /* ==========================================================================
+           CODE & IDE WRAPPER LAYOUTS
+           ========================================================================== */
+        .code-container {
+            position: relative;
+            background-color: #060814;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-top: 1rem;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .code-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #121829;
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #94a3b8;
+        }
+
+        .code-filename {
+            display: flex;
+            align-items: center;
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+        }
+
+        pre {
+            padding: 1.25rem;
+            overflow-x: auto;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            max-width: 100%;
+            margin-top: 0;
+        }
+
+        code {
+            font-family: var(--font-mono);
+        }
+
+        .copy-btn {
+            background-color: var(--bg-base);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            transition: var(--transition-smooth);
+        }
+
+        .copy-btn:hover {
+            border-color: var(--primary);
+            color: var(--text-primary);
+        }
+
+        /* Offline QR indicators */
+        .offline-qr {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            padding: 0.75rem;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.01);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 125px;
+            width: 125px;
+        }
+
+        /* SVGs styling */
+        .icon {
+            width: 16px;
+            height: 16px;
+            stroke-width: 2px;
+            stroke: currentColor;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .icon-sm {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* ==========================================================================
+           TOAST NOTIFICATION SYSTEM
+           ========================================================================== */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            z-index: 1000;
+        }
+
+        .toast {
+            background-color: var(--bg-surface-elevated);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--primary);
+            color: var(--text-primary);
+            padding: 0.85rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            transform: translateX(120%);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: auto;
+        }
+
+        .toast.active {
+            transform: translateX(0);
+        }
+
+        .toast-success {
+            border-left-color: var(--success);
+        }
+
+        /* Footer styling */
+        footer {
+            margin-top: 4rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        footer p {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow"></div>
+    <div class="ambient-glow-left"></div>
+
+    <!-- ==========================================================================
+         GLOBAL HEADER NAVIGATION
+         ========================================================================== -->
+    <nav class="top-navbar">
+        <div class="nav-container">
+            <div class="logo-area">
+                <div class="logo-icon">MT</div>
+                <div class="branding">
+                    <span class="logo-text">MikroTik WireGuard Suite</span>
+                    <span class="logo-subtext">RouterOS v7 Engine</span>
+                </div>
+            </div>
+            
+            <div class="nav-center">
+                <div class="config-name-badge">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <input type="text" id="config_name" value="WireGuard_Config" placeholder="Project Name" title="Edit configuration file name">
+                </div>
+            </div>
+            
+            <div class="nav-actions">
+                <button class="btn-nav" id="theme-toggle-btn" onclick="toggleTheme()" title="Switch between Light and Dark mode">
+                    <!-- Icon and text injected dynamically via JS -->
+                </button>
+                <button class="btn-nav" onclick="triggerImport()" title="Upload a previously saved state JSON file">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Import JSON
+                </button>
+                <button class="btn-nav btn-nav-primary" onclick="exportStateFile()" title="Download current setup as a state JSON file">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export JSON
+                </button>
+                <input type="file" id="import-state-file" style="display: none;" accept=".json" onchange="importStateFile(event)">
+            </div>
+        </div>
+    </nav>
+
+    <!-- ==========================================================================
+         DASHBOARD TABS SELECTOR
+         ========================================================================== -->
+    <div class="dashboard-tabs-container">
+        <button class="dashboard-tab-btn active" id="btn-server-tab" onclick="switchDashboardTab('server-tab')">
+            <svg class="icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+            Server Side Configuration
+        </button>
+        <button class="dashboard-tab-btn" id="btn-clients-tab" onclick="switchDashboardTab('clients-tab')">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Client Side Configurations
+            <span class="peer-badge" id="peer-count-badge">0</span>
+        </button>
+    </div>
+
+    <!-- ==========================================================================
+         TAB 1: SERVER CONFIGURATION DASHBOARD
+         ========================================================================== -->
+    <div id="server-tab" class="dashboard-tab-content active">
+        <div class="server-grid">
+            
+            <!-- SERVER CONFIGURATION CARD -->
+            <div class="card">
+                <div class="card-title">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Server Settings
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <div class="label-wrapper">
+                            <label for="endpoint">Public IP / DDNS Domain</label>
+                            <div class="tooltip-wrapper">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                <span class="tooltip-text">The public-facing internet address of your router. This is required so remote clients know where to connect to access the VPN.</span>
+                            </div>
+                        </div>
+                        <input type="text" id="endpoint" value="vpn.example.com" placeholder="e.g. 192.0.2.1 or vpn.yourdomain.com">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="label-wrapper">
+                                <label for="listen_port">UDP Port</label>
+                                <div class="tooltip-wrapper">
+                                    <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                    <span class="tooltip-text">The UDP port the WireGuard interface listens on. Default: 51820.</span>
+                                </div>
+                            </div>
+                            <input type="number" id="listen_port" value="51820">
+                        </div>
+                        <div class="form-group">
+                            <div class="label-wrapper">
+                                <label for="mtu">MTU Size</label>
+                                <div class="tooltip-wrapper">
+                                    <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                    <span class="tooltip-text">Maximum Transmission Unit. Controls packet sizing. Standard WireGuard MTU is 1420 to prevent packet fragmentation.</span>
+                                </div>
+                            </div>
+                            <input type="number" id="mtu" value="1420">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="label-wrapper">
+                                <label for="interface_name">Interface Name</label>
+                                <div class="tooltip-wrapper">
+                                    <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                    <span class="tooltip-text">The virtual interface name on the MikroTik router (Default: wireguard1).</span>
+                                </div>
+                            </div>
+                            <input type="text" id="interface_name" value="wireguard1">
+                        </div>
+                        <div class="form-group">
+                            <div class="label-wrapper">
+                                <label for="vpn_subnet">VPN Subnet</label>
+                                <div class="tooltip-wrapper">
+                                    <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                    <span class="tooltip-text">The private IP range used exclusively inside the VPN tunnel (Default: 10.10.0.0/24).</span>
+                                </div>
+                            </div>
+                            <input type="text" id="vpn_subnet" value="10.10.0.0/24">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="label-wrapper">
+                            <label for="server_tunnel_ip">Router Tunnel IP</label>
+                            <div class="tooltip-wrapper">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                <span class="tooltip-text">The private IP address of the router inside the VPN tunnel (Default: 10.10.0.1).</span>
+                            </div>
+                        </div>
+                        <input type="text" id="server_tunnel_ip" value="10.10.0.1">
+                    </div>
+
+                    <div class="toggle-group">
+                        <div class="toggle-label-area">
+                            <span class="toggle-label">Enable NAT Masquerade</span>
+                            <div class="tooltip-wrapper">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                <span class="tooltip-text">Applies NAT to the VPN traffic, enabling clients to browse the general internet using your router's connection.</span>
+                            </div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="enable_masquerade" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" id="wan-group">
+                        <div class="label-wrapper">
+                            <label for="wan_interface">MikroTik WAN Interface / List</label>
+                            <div class="tooltip-wrapper">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                <span class="tooltip-text">The interface connected directly to the internet (typically ether1) or an Interface List (typically WAN).</span>
+                            </div>
+                        </div>
+                        <input type="text" id="wan_interface" value="ether1">
+                    </div>
+
+                    <div class="toggle-group" id="wan-list-group">
+                        <div class="toggle-label-area">
+                            <span class="toggle-label">Is WAN an Interface List?</span>
+                            <div class="tooltip-wrapper">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                <span class="tooltip-text">Enable if your WAN parameter refers to a RouterOS Interface List (e.g. 'WAN') instead of a raw hardware port name (e.g. 'ether1').</span>
+                            </div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="wan_is_list">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="toggle-group">
+                        <div class="toggle-label-area">
+                            <span class="toggle-label">Route All Client Traffic (Full Tunnel)</span>
+                            <div class="tooltip-wrapper">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                <span class="tooltip-text">Full-Tunnel (Enabled) routes ALL client traffic through the VPN. Split-Tunnel (Disabled) routes ONLY traffic destined for your LAN.</span>
+                            </div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="full_tunnel" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" id="lan-group" style="display: none;">
+                        <div class="label-wrapper">
+                            <label for="lan_subnet">Home / Office LAN Subnet</label>
+                            <div class="tooltip-wrapper">
+                                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                <span class="tooltip-text">The internal office subnet range (e.g. 192.168.88.0/24). In split-tunnel mode, this range is routed so you can connect to local devices.</span>
+                            </div>
+                        </div>
+                        <input type="text" id="lan_subnet" value="192.168.88.0/24" placeholder="e.g. 192.168.88.0/24">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <div class="label-wrapper">
+                                <label for="dns_servers">DNS Servers</label>
+                                <div class="tooltip-wrapper">
+                                    <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                    <span class="tooltip-text">DNS servers assigned to clients (e.g. 1.1.1.1, 8.8.8.8).</span>
+                                </div>
+                            </div>
+                            <input type="text" id="dns_servers" value="1.1.1.1, 8.8.8.8">
+                        </div>
+                        <div class="form-group">
+                            <div class="label-wrapper">
+                                <label for="keepalive">Keepalive (sec)</label>
+                                <div class="tooltip-wrapper">
+                                    <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                    <span class="tooltip-text">Sends keepalive packets. Recommended (25 sec) for NAT traversal on mobile clients.</span>
+                                </div>
+                            </div>
+                            <input type="number" id="keepalive" value="25">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SERVER CLI SCRIPT CONTAINER -->
+            <div class="card" style="min-height: 500px;">
+                <div class="card-title">
+                    <svg class="icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    RouterOS v7 CLI Import Script
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                    Copy these command lines and paste them directly into your MikroTik CLI Terminal window.
+                </p>
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-filename" id="rsc-filename-badge">
+                            <svg class="icon icon-sm" style="margin-right:4px;" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            wireguard_server.rsc
+                        </span>
+                        <button class="copy-btn" onclick="copyCode('rsc-code')">
+                            <svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copy Script
+                        </button>
+                    </div>
+                    <pre><code id="rsc-code" class="language-bash">Generating commands...</code></pre>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ==========================================================================
+         TAB 2: CLIENT DIRECTORY DASHBOARD
+         ========================================================================== -->
+    <div id="clients-tab" class="dashboard-tab-content">
+        
+        <div class="client-dashboard-header">
+            <!-- Summary stats card -->
+            <div class="client-stats-card">
+                <div class="stat-item">
+                    <span class="stat-label">VPN Tunnel Network</span>
+                    <span class="stat-value" id="stats-vpn-subnet">10.10.0.0/24</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Assigned IPs Range</span>
+                    <span class="stat-value" id="stats-ip-range">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total Peers</span>
+                    <span class="stat-value" id="stats-peers-count">0 Clients</span>
+                </div>
+            </div>
+
+            <!-- Quick Add Card -->
+            <div class="quick-add-card">
+                <div class="quick-add-form">
+                    <input type="text" id="quick-peer-name" placeholder="Type client name (e.g. mobile_phone, laptop)..." onkeydown="handleQuickAddKey(event)">
+                    <button class="btn-primary" onclick="quickAddPeer()">
+                        <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Add Peer Client
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Client Cards Grid -->
+        <div class="peer-grid" id="peer-grid-container">
+            <!-- Injected dynamically in JavaScript -->
+        </div>
+
+    </div>
+
+    <footer>
+        <p><strong>MikroTik WireGuard Configuration Generator</strong></p>
+        <p>Safe, local, and private. Keys are generated entirely client-side using pure JavaScript. Zero external dependencies.</p>
+    </footer>
+
+    <!-- ==========================================================================
+         CRYPTOGRAPHIC & GENERATOR ENGINE JAVASCRIPT
+         ========================================================================== -->
+    <script>
+        // --- 1. CRYPTO ENGINE (PURE JS CURVE25519) ---
+        const P = (1n << 255n) - 19n;
+        const A24 = 121665n;
+
+        function field_inv(n) {
+            return pow_mod(n, P - 2n, P);
+        }
+
+        function pow_mod(base, exp, mod) {
+            let res = 1n;
+            base = base % mod;
+            while (exp > 0n) {
+                if (exp % 2n === 1n) res = (res * base) % mod;
+                base = (base * base) % mod;
+                exp = exp / 2n;
+            }
+            return res;
+        }
+
+        function x25519_scalarmult(k, u) {
+            let x_1 = u;
+            let x_2 = 1n;
+            let z_2 = 0n;
+            let x_3 = u;
+            let z_3 = 1n;
+            let swap = 0n;
+            
+            for (let t = 254n; t >= 0n; t--) {
+                let k_t = (k >> t) & 1n;
+                swap ^= k_t;
+                if (swap) {
+                    let tempX = x_2; x_2 = x_3; x_3 = tempX;
+                    let tempZ = z_2; z_2 = z_3; z_3 = tempZ;
+                }
+                swap = k_t;
+                
+                let A = (x_2 + z_2) % P;
+                let AA = (A * A) % P;
+                let B = (x_2 - z_2) % P;
+                let BB = (B * B) % P;
+                let E = (AA - BB + P) % P;
+                let C = (x_3 + z_3) % P;
+                let D = (x_3 - z_3) % P;
+                let DA = (D * A) % P;
+                let CB = (C * B) % P;
+                x_3 = (DA + CB) % P;
+                x_3 = (x_3 * x_3) % P;
+                let diff = (DA - CB + P) % P;
+                z_3 = (x_1 * ((diff * diff) % P)) % P;
+                x_2 = (AA * BB) % P;
+                z_2 = (E * (AA + A24 * E)) % P;
+            }
+            if (swap) {
+                let tempX = x_2; x_2 = x_3; x_3 = tempX;
+                let tempZ = z_2; z_2 = z_3; z_3 = tempZ;
+            }
+            return (x_2 * field_inv(z_2)) % P;
+        }
+
+        function bytesToBigIntLE(bytes) {
+            let val = 0n;
+            for (let i = bytes.length - 1; i >= 0; i--) {
+                val = (val << 8n) + BigInt(bytes[i]);
+            }
+            return val;
+        }
+
+        function bigIntToBytesLE(val) {
+            const bytes = new Uint8Array(32);
+            for (let i = 0; i < 32; i++) {
+                bytes[i] = Number(val & 0xFFn);
+                val >>= 8n;
+            }
+            return bytes;
+        }
+
+        function bytesToBase64(bytes) {
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        }
+
+        function generateKeyPair() {
+            const privateBytes = new Uint8Array(32);
+            window.crypto.getRandomValues(privateBytes);
+            
+            privateBytes[0] &= 248;
+            privateBytes[31] &= 127;
+            privateBytes[31] |= 64;
+            
+            const k = bytesToBigIntLE(privateBytes);
+            const pubVal = x25519_scalarmult(k, 9n);
+            const publicBytes = bigIntToBytesLE(pubVal);
+            
+            return {
+                privateKey: bytesToBase64(privateBytes),
+                publicKey: bytesToBase64(publicBytes)
+            };
+        }
+
+        // --- 2. ENGINE GENERAL STATE ---
+        let serverKeys = generateKeyPair();
+        let clientsData = [];
+        let peerCount = 0;
+        const initialPeers = ['phone', 'laptop'];
+
+        // --- 3. TOAST NOTIFICATION UTILITY ---
+        function showNotification(message, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type === 'success' ? 'toast-success' : ''}`;
+            
+            let strokeColor = type === 'success' ? 'var(--success)' : 'var(--primary)';
+            if (type === 'error') strokeColor = 'var(--danger)';
+            
+            toast.innerHTML = `
+                <svg class="icon" style="stroke: ${strokeColor}" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <span>${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('active'), 50);
+            
+            // Auto slide out after 2.5s
+            setTimeout(() => {
+                toast.classList.remove('active');
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
+
+        // --- 4. TABS NAVIGATION CONTROL ---
+        function switchDashboardTab(tabId) {
+            document.querySelectorAll('.dashboard-tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.dashboard-tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            
+            if (tabId === 'server-tab') {
+                document.getElementById('btn-server-tab').classList.add('active');
+            } else {
+                document.getElementById('btn-clients-tab').classList.add('active');
+            }
+        }
+
+        // --- 5. PEERS ADD / REMOVE / UPDATE ACTIONS ---
+        function quickAddPeer() {
+            const input = document.getElementById('quick-peer-name');
+            const name = input.value.trim();
+            if (!name) {
+                showNotification("Please enter a client peer name first.", "error");
+                return;
+            }
+            
+            // Sequential VPN tunnel IP calculation
+            const serverTunnelIp = document.getElementById('server_tunnel_ip').value.trim() || '10.10.0.1';
+            const baseIpParts = serverTunnelIp.split('.');
+            
+            let nextIpCounter = parseInt(baseIpParts[3]) + 1;
+            if (clientsData.length > 0) {
+                const lastIpParts = clientsData[clientsData.length - 1].ip.split('.');
+                nextIpCounter = parseInt(lastIpParts[3]) + 1;
+            }
+            
+            const clientIp = `${baseIpParts[0]}.${baseIpParts[1]}.${baseIpParts[2]}.${nextIpCounter}`;
+            
+            const newPeer = {
+                name: name,
+                ip: clientIp,
+                keys: generateKeyPair()
+            };
+            
+            clientsData.push(newPeer);
+            input.value = '';
+            
+            rebuildClientGrid();
+            generateScriptsOnly();
+            showNotification(`Added peer "${name}" successfully.`, "success");
+        }
+
+        function handleQuickAddKey(event) {
+            if (event.key === 'Enter') {
+                quickAddPeer();
+            }
+        }
+
+        function removePeerItem(idx) {
+            const peerName = clientsData[idx].name;
+            clientsData.splice(idx, 1);
+            
+            rebuildClientGrid();
+            generateScriptsOnly();
+            showNotification(`Removed client peer "${peerName}".`);
+        }
+
+        function updatePeerName(event, idx) {
+            const newName = event.target.value.trim();
+            clientsData[idx].name = newName || `client_${idx + 1}`;
+            
+            // Dynamic updates inside existing open blocks, keeping keyboard focus perfectly
+            generateScriptsOnly();
+        }
+
+        // --- 6. KEY DISCLOSURE REVEALER ---
+        function toggleKeyReveal(idx) {
+            const keySpan = document.getElementById(`private-key-${idx}`);
+            const icon = document.getElementById(`key-eye-icon-${idx}`);
+            if (!keySpan) return;
+            
+            const isObscured = keySpan.classList.contains('obscured-key');
+            if (isObscured) {
+                keySpan.textContent = keySpan.getAttribute('data-key');
+                keySpan.classList.remove('obscured-key');
+                icon.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+            } else {
+                keySpan.textContent = '••••••••••••••••••••••••••••••••';
+                keySpan.classList.add('obscured-key');
+                icon.innerHTML = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+            }
+        }
+
+        // --- 7. COLLAPSIBLE QR & CONFIG CODE PANEL ---
+        function toggleQrDrawer(idx) {
+            const drawer = document.getElementById(`qr-drawer-${idx}`);
+            const btn = document.getElementById(`qr-btn-${idx}`);
+            if (!drawer) return;
+            
+            const isActive = drawer.classList.contains('active');
+            if (isActive) {
+                drawer.classList.remove('active');
+                btn.classList.remove('active');
+            } else {
+                drawer.classList.add('active');
+                btn.classList.add('active');
+                
+                const codeEl = document.getElementById(`client-code-${idx}`);
+                if (codeEl) {
+                    renderQrForIndex(idx, codeEl.textContent);
+                }
+            }
+        }
+
+        function renderQrForIndex(idx, confText) {
+            const canvas = document.getElementById(`qr-canvas-${idx}`);
+            if (!canvas) return;
+
+            if (typeof QRious !== 'undefined') {
+                try {
+                    new QRious({
+                        element: canvas,
+                        value: confText,
+                        size: 180,
+                        level: 'L'
+                    });
+                } catch (e) {
+                    console.error("QR Code rendering failed:", e);
+                    canvas.parentElement.innerHTML = '<div class="offline-qr">QR Draw Failed</div>';
+                }
+            } else {
+                canvas.parentElement.innerHTML = `
+                    <div class="offline-qr">
+                        <p style="margin-bottom: 0.25rem; font-weight: 500;">Offline Mode</p>
+                        <p style="font-size: 0.7rem; color: var(--text-muted);">QR relies on cloud cdn</p>
+                    </div>
+                `;
+            }
+        }
+
+        // --- 8. CLIPBOARD COPY UTILITIES ---
+        function copyCode(elementId) {
+            const codeEl = document.getElementById(elementId);
+            const textToCopy = codeEl.textContent;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showNotification("Script copied to clipboard!", "success");
+            }).catch(err => {
+                console.error("Failed to copy code: ", err);
+                showNotification("Copy failed. Please copy manually.", "error");
+            });
+        }
+
+        function copyValue(text, label) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification(`${label} copied to clipboard!`, "success");
+            }).catch(err => {
+                console.error("Failed to copy: ", err);
+            });
+        }
+
+        function copyClientConf(idx) {
+            const codeEl = document.getElementById(`client-code-${idx}`);
+            if (!codeEl) return;
+            
+            navigator.clipboard.writeText(codeEl.textContent).then(() => {
+                showNotification(`Config for "${clientsData[idx].name}" copied!`, "success");
+            }).catch(() => {
+                showNotification("Failed to copy configuration.", "error");
+            });
+        }
+
+        // --- 9. CONFIG FILE DOWNLOAD ENGINES ---
+        function downloadClientConf(idx) {
+            const client = clientsData[idx];
+            const codeEl = document.getElementById(`client-code-${idx}`);
+            if (!client || !codeEl) return;
+            
+            const blob = new Blob([codeEl.textContent], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `client_${client.name}.conf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showNotification(`Downloaded client_${client.name}.conf`, "success");
+        }
+
+        // --- 10. STATE IMPORT & EXPORT SUITE ---
+        function exportStateFile() {
+            const configName = document.getElementById('config_name').value.trim() || 'WireGuard_Config';
+            const state = {
+                config_name: configName,
+                endpoint: document.getElementById('endpoint').value.trim(),
+                listen_port: parseInt(document.getElementById('listen_port').value) || 51820,
+                mtu: parseInt(document.getElementById('mtu').value) || 1420,
+                interface_name: document.getElementById('interface_name').value.trim(),
+                vpn_subnet: document.getElementById('vpn_subnet').value.trim(),
+                server_tunnel_ip: document.getElementById('server_tunnel_ip').value.trim(),
+                enable_masquerade: document.getElementById('enable_masquerade').checked,
+                wan_interface: document.getElementById('wan_interface').value.trim(),
+                wan_is_list: document.getElementById('wan_is_list').checked,
+                full_tunnel: document.getElementById('full_tunnel').checked,
+                lan_subnet: document.getElementById('lan_subnet').value.trim(),
+                dns_servers: document.getElementById('dns_servers').value.trim(),
+                keepalive: parseInt(document.getElementById('keepalive').value) || 0,
+                server_private_key: serverKeys.privateKey,
+                server_public_key: serverKeys.publicKey,
+                clients: clientsData.map(c => ({
+                    name: c.name,
+                    ip: c.ip,
+                    private_key: c.keys.privateKey,
+                    public_key: c.keys.publicKey
+                }))
+            };
+
+            const blob = new Blob([JSON.stringify(state, null, 4)], { type: 'application/json;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${configName}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showNotification("State file exported successfully!", "success");
+        }
+
+        function triggerImport() {
+            document.getElementById('import-state-file').click();
+        }
+
+        function importStateFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const state = JSON.parse(e.target.result);
+                    
+                    // Populate Server Settings
+                    document.getElementById('config_name').value = state.config_name || 'WireGuard_Config';
+                    document.getElementById('endpoint').value = state.endpoint || '';
+                    document.getElementById('listen_port').value = state.listen_port || 51820;
+                    document.getElementById('mtu').value = state.mtu || 1420;
+                    document.getElementById('interface_name').value = state.interface_name || 'wireguard1';
+                    document.getElementById('vpn_subnet').value = state.vpn_subnet || '10.10.0.0/24';
+                    document.getElementById('server_tunnel_ip').value = state.server_tunnel_ip || '10.10.0.1';
+                    document.getElementById('enable_masquerade').checked = state.enable_masquerade !== false;
+                    document.getElementById('wan_interface').value = state.wan_interface || 'ether1';
+                    document.getElementById('wan_is_list').checked = state.wan_is_list === true;
+                    document.getElementById('full_tunnel').checked = state.full_tunnel !== false;
+                    document.getElementById('lan_subnet').value = state.lan_subnet || '';
+                    document.getElementById('dns_servers').value = state.dns_servers || '';
+                    document.getElementById('keepalive').value = state.keepalive || 0;
+
+                    // Overwrite keys
+                    serverKeys = {
+                        privateKey: state.server_private_key,
+                        publicKey: state.server_public_key
+                    };
+
+                    // Repopulate client list
+                    clientsData = [];
+                    if (state.clients && Array.isArray(state.clients)) {
+                        state.clients.forEach(cl => {
+                            clientsData.push({
+                                name: cl.name,
+                                ip: cl.ip,
+                                keys: {
+                                    privateKey: cl.private_key,
+                                    publicKey: cl.public_key
+                                }
+                            });
+                        });
+                    }
+
+                    event.target.value = '';
+                    
+                    rebuildClientGrid();
+                    generateScriptsOnly();
+                    
+                    showNotification("State file loaded successfully!", "success");
+                } catch (err) {
+                    showNotification("Failed to parse JSON file.", "error");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- 11. GRID BUILDER & LIVE SYNCHRONIZER ---
+        function rebuildClientGrid() {
+            const container = document.getElementById('peer-grid-container');
+            container.innerHTML = '';
+            
+            document.getElementById('stats-peers-count').textContent = `${clientsData.length} Client${clientsData.length === 1 ? '' : 's'}`;
+            document.getElementById('peer-count-badge').textContent = clientsData.length;
+            
+            const vpnSubnet = document.getElementById('vpn_subnet').value.trim() || '10.10.0.0/24';
+            document.getElementById('stats-vpn-subnet').textContent = vpnSubnet;
+            
+            if (clientsData.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg class="icon empty-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+                        <div class="empty-title">No Peer Clients Configured</div>
+                        <div class="empty-subtitle">Type a name in the box above to add client devices to your secure WireGuard network.</div>
+                    </div>
+                `;
+                document.getElementById('stats-ip-range').textContent = '-';
+                return;
+            }
+            
+            if (clientsData.length > 0) {
+                const startIp = clientsData[0].ip;
+                const endIp = clientsData[clientsData.length - 1].ip;
+                document.getElementById('stats-ip-range').textContent = `${startIp} - ${endIp}`;
+            }
+
+            clientsData.forEach((client, idx) => {
+                const card = document.createElement('div');
+                card.className = 'peer-card';
+                card.id = `peer-card-${idx}`;
+                
+                card.innerHTML = `
+                    <div class="peer-card-header">
+                        <div class="peer-card-title-group">
+                            <input type="text" class="card-peer-name-input" value="${client.name}" oninput="updatePeerName(event, ${idx})" placeholder="Client Name">
+                        </div>
+                        <span class="peer-ip-badge">
+                            <span class="status-dot"></span>
+                            ${client.ip}
+                        </span>
+                    </div>
+                    
+                    <div class="peer-card-keys">
+                        <div class="peer-key-row">
+                            <span class="peer-key-label">Public Key</span>
+                            <div class="key-display" onclick="copyValue('${client.keys.publicKey}', 'Public Key')" title="Click to copy public key">
+                                <span>${client.keys.publicKey}</span>
+                                <svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            </div>
+                        </div>
+                        <div class="peer-key-row">
+                            <span class="peer-key-label">Private Key</span>
+                            <div class="key-display" onclick="copyValue('${client.keys.privateKey}', 'Private Key')" title="Click to copy private key">
+                                <span id="private-key-${idx}" class="obscured-key" data-key="${client.keys.privateKey}">••••••••••••••••••••••••••••••••</span>
+                                <div style="display: flex; gap: 0.35rem; align-items: center;">
+                                    <div onclick="event.stopPropagation(); toggleKeyReveal(${idx})" title="Toggle Visibility" style="padding: 0.1rem 0.25rem;">
+                                        <svg class="icon icon-sm" id="key-eye-icon-${idx}" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    </div>
+                                    <svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="peer-card-actions">
+                        <button class="btn-card-action" id="qr-btn-${idx}" onclick="toggleQrDrawer(${idx})">
+                            <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/></svg>
+                            Scan QR / Code
+                        </button>
+                        <button class="btn-card-action" onclick="downloadClientConf(${idx})">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            .conf
+                        </button>
+                        <button class="btn-card-action" onclick="copyClientConf(${idx})">
+                            <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copy
+                        </button>
+                        <button class="btn-card-delete" onclick="removePeerItem(${idx})" title="Remove client peer">
+                            <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                        </button>
+                    </div>
+                    
+                    <div class="qr-drawer" id="qr-drawer-${idx}">
+                        <div class="qr-drawer-layout">
+                            <div class="qr-drawer-left">
+                                <canvas id="qr-canvas-${idx}"></canvas>
+                            </div>
+                            <div class="qr-drawer-right">
+                                <span class="peer-key-label" id="card-filename-${idx}">client_${client.name}.conf</span>
+                                <div class="drawer-code-container">
+                                    <pre><code id="client-code-${idx}" class="language-ini">Generating profile...</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function generateScriptsOnly() {
+            const configName = document.getElementById('config_name').value.trim() || 'WireGuard_Config';
+            const endpoint = document.getElementById('endpoint').value.trim();
+            const listenPort = parseInt(document.getElementById('listen_port').value) || 51820;
+            const mtu = parseInt(document.getElementById('mtu').value) || 1420;
+            const interfaceName = document.getElementById('interface_name').value.trim() || 'wireguard1';
+            const vpnSubnet = document.getElementById('vpn_subnet').value.trim() || '10.10.0.0/24';
+            const serverTunnelIp = document.getElementById('server_tunnel_ip').value.trim() || '10.10.0.1';
+            const enableMasquerade = document.getElementById('enable_masquerade').checked;
+            const wanInterface = document.getElementById('wan_interface').value.trim() || 'ether1';
+            const wanIsList = document.getElementById('wan_is_list').checked;
+            const fullTunnel = document.getElementById('full_tunnel').checked;
+            const lanSubnet = document.getElementById('lan_subnet').value.trim();
+            const dnsServers = document.getElementById('dns_servers').value.trim();
+            const keepalive = parseInt(document.getElementById('keepalive').value) || 0;
+
+            // Form collapse updates
+            document.getElementById('wan-group').style.display = enableMasquerade ? 'block' : 'none';
+            document.getElementById('wan-list-group').style.display = enableMasquerade ? 'flex' : 'none';
+            document.getElementById('lan-group').style.display = fullTunnel ? 'none' : 'block';
+
+            // Filename badge update
+            document.getElementById('rsc-filename-badge').innerHTML = `
+                <svg class="icon icon-sm" style="margin-right:4px;" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                ${configName}_server.rsc
+            `;
+
+            // RouterOS Server Script Generation
+            let rsc = `# ==============================================================================\n`;
+            rsc += `# MikroTik RouterOS v7 WireGuard Server Import Script\n`;
+            rsc += `# Config Name: ${configName}\n`;
+            rsc += `# Generated: ${new Date().toISOString().split('T')[0]}\n`;
+            rsc += `# ==============================================================================\n\n`;
+
+            rsc += `# 1. CREATE WIREGUARD SERVER INTERFACE\n`;
+            rsc += `/interface/wireguard/add name=${interfaceName} listen-port=${listenPort} \\\n`;
+            rsc += `    private-key="${serverKeys.privateKey}" mtu=${mtu} comment="WireGuard VPN Server"\n\n`;
+
+            rsc += `# 2. ASSIGN IP ADDRESS TO TUNNEL INTERFACE\n`;
+            rsc += `/ip/address/add address=${serverTunnelIp}/24 interface=${interfaceName} comment="WireGuard Tunnel Subnet"\n\n`;
+
+            rsc += `# 3. FIREWALL RULE: ALLOW INCOMING UDP PORT\n`;
+            rsc += `/ip/firewall/filter/add action=accept chain=input comment="Accept WireGuard" dst-port=${listenPort} protocol=udp\n\n`;
+
+            if (enableMasquerade) {
+                rsc += `# 4. FIREWALL NAT: MASQUERADE FOR VPN TRAFFIC OUT WAN\n`;
+                const wanAttr = wanIsList ? `out-interface-list=${wanInterface}` : `out-interface=${wanInterface}`;
+                rsc += `/ip/firewall/nat/add chain=srcnat action=masquerade ${wanAttr} \\\n`;
+                rsc += `    src-address=${vpnSubnet} comment="Masquerade WireGuard VPN Traffic"\n\n`;
+            }
+
+            rsc += `# 5. PEERS / CLIENTS REGISTRATION\n`;
+            clientsData.forEach(cl => {
+                const safeName = cl.name || 'unnamed_client';
+                rsc += `# Client: ${safeName} (IP: ${cl.ip})\n`;
+                rsc += `/interface/wireguard/peers/add interface=${interfaceName} \\\n`;
+                rsc += `    public-key="${cl.keys.publicKey}" allowed-address=${cl.ip}/32 \\\n`;
+                rsc += `    comment="Client: ${safeName}"\n\n`;
+            });
+            
+            rsc += `# ==============================================================================\n`;
+            rsc += `# End of MikroTik script\n`;
+            rsc += `# ==============================================================================\n`;
+
+            document.getElementById('rsc-code').textContent = rsc;
+
+            // Recalculate each client .conf
+            clientsData.forEach((cl, idx) => {
+                let allowedIps = "0.0.0.0/0, ::/0";
+                if (!fullTunnel) {
+                    const routeList = [`${cl.ip}/32`, vpnSubnet];
+                    if (lanSubnet) routeList.push(lanSubnet);
+                    allowedIps = routeList.join(', ');
+                }
+
+                let conf = `# WireGuard Client Configuration for: ${cl.name || 'unnamed'}\n\n`;
+                conf += `[Interface]\n`;
+                conf += `PrivateKey = ${cl.keys.privateKey}\n`;
+                conf += `Address = ${cl.ip}/24\n`;
+                if (dnsServers) conf += `DNS = ${dnsServers}\n`;
+                if (mtu) conf += `MTU = ${mtu}\n\n`;
+
+                conf += `[Peer]\n`;
+                conf += `PublicKey = ${serverKeys.publicKey}\n`;
+                conf += `Endpoint = ${endpoint || 'vpn.example.com'}:${listenPort}\n`;
+                conf += `AllowedIPs = ${allowedIps}\n`;
+                if (keepalive > 0) conf += `PersistentKeepalive = ${keepalive}\n`;
+
+                const codeEl = document.getElementById(`client-code-${idx}`);
+                if (codeEl) {
+                    codeEl.textContent = conf;
+                }
+
+                const filenameEl = document.getElementById(`card-filename-${idx}`);
+                if (filenameEl) {
+                    filenameEl.textContent = `client_${cl.name || 'unnamed'}.conf`;
+                }
+
+                // Auto update open canvas QR if active
+                const drawer = document.getElementById(`qr-drawer-${idx}`);
+                if (drawer && drawer.classList.contains('active')) {
+                    renderQrForIndex(idx, conf);
+                }
+            });
+        }
+
+        // --- 12. THEME SWITCHER CONTROLLER ---
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.body.setAttribute('data-theme', savedTheme);
+            updateThemeButton(savedTheme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.body.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeButton(newTheme);
+            showNotification(`Switched to ${newTheme === 'dark' ? 'Dark' : 'Light'} Mode`, "success");
+        }
+
+        function updateThemeButton(theme) {
+            const btn = document.getElementById('theme-toggle-btn');
+            if (!btn) return;
+            
+            if (theme === 'light') {
+                btn.innerHTML = `
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    Dark Mode
+                `;
+            } else {
+                btn.innerHTML = `
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    Light Mode
+                `;
+            }
+        }
+
+        // --- 13. BOOTSTRAP INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            // Load initial mockup set
+            initialPeers.forEach(name => {
+                peerCount++;
+                const serverTunnelIp = '10.10.0.1';
+                const baseIpParts = serverTunnelIp.split('.');
+                const clientIp = `${baseIpParts[0]}.${baseIpParts[1]}.${baseIpParts[2]}.${peerCount + 1}`;
+                
+                clientsData.push({
+                    name: name,
+                    ip: clientIp,
+                    keys: generateKeyPair()
+                });
+            });
+
+            // Bind triggers to inputs
+            const inputs = ['config_name', 'endpoint', 'listen_port', 'mtu', 'interface_name', 'vpn_subnet', 'server_tunnel_ip', 'wan_interface', 'lan_subnet', 'dns_servers', 'keepalive'];
+            inputs.forEach(id => {
+                document.getElementById(id).addEventListener('input', generateScriptsOnly);
+            });
+
+            document.getElementById('enable_masquerade').addEventListener('change', generateScriptsOnly);
+            document.getElementById('wan_is_list').addEventListener('change', generateScriptsOnly);
+            document.getElementById('full_tunnel').addEventListener('change', generateScriptsOnly);
+
+            // Run initial render
+            rebuildClientGrid();
+            generateScriptsOnly();
+        });
+    </script>
+</body>
+</html>
